@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getSupabase } from '../lib/supabase';
 import { Product } from '../types';
-import { Loader2, DollarSign, Calendar, Tag, ArrowLeft, Package, Globe } from 'lucide-react';
+import { Loader2, DollarSign, Calendar, Tag, ArrowLeft, Package, Globe, FileText } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import ModuleSystem from '../components/ModuleSystem';
+import { exportReportToHtml } from '../services/exportService';
+import { MODULE_LIBRARY } from '../constants/moduleLibrary';
 
 const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +28,56 @@ const ProductDetailPage = () => {
     if (error) console.error('Error fetching product:', error);
     else setProduct(data);
     setLoading(false);
+  };
+
+  const handleExportReport = async () => {
+    if (!product) return;
+
+    try {
+      // Fetch all modules
+      const { data: modulesData, error: modulesError } = await getSupabase()
+        .from('modules')
+        .select('*')
+        .eq('parent_id', product.id)
+        .eq('parent_type', 'product')
+        .order('module_order', { ascending: true });
+
+      if (modulesError) throw modulesError;
+
+      // Fetch rows for each module
+      const modulesWithRows = await Promise.all(
+        (modulesData || []).map(async (mod) => {
+          const { data: rowsData, error: rowsError } = await getSupabase()
+            .from('module_rows')
+            .select('*')
+            .eq('module_id', mod.id)
+            .order('created_at', { ascending: true });
+
+          if (rowsError) throw rowsError;
+
+          const definition = MODULE_LIBRARY.find((d) => d.type === mod.module_type);
+          return {
+            definition: definition!,
+            rows: rowsData || [],
+            notes: mod.notes,
+          };
+        })
+      );
+
+      const info = [
+        { label: 'Project', value: product.projects?.name },
+        { label: 'Category', value: product.categories?.name },
+        { label: 'Market', value: product.market },
+        { label: 'Price Range', value: product.price_range },
+        { label: 'Research Date', value: product.research_date ? new Date(product.research_date).toLocaleDateString() : '' },
+        { label: 'Description', value: product.description },
+      ];
+
+      exportReportToHtml(product.name, info, modulesWithRows.filter(m => !!m.definition));
+    } catch (err) {
+      console.error('Error exporting report:', err);
+      alert('Failed to export report. Please try again.');
+    }
   };
 
   if (loading) {
@@ -58,6 +110,13 @@ const ProductDetailPage = () => {
 
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight text-zinc-900">{product.name}</h2>
+        <button
+          onClick={handleExportReport}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors shadow-sm"
+        >
+          <FileText className="w-4 h-4" />
+          Export Research Report
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -4,9 +4,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { Module, ModuleRow } from '../types';
 import { MODULE_LIBRARY } from '../constants/moduleLibrary';
 import { getSupabase } from '../lib/supabase';
-import { ChevronDown, ChevronUp, GripVertical, Trash2, Loader2, Info, LayoutGrid } from 'lucide-react';
+import { ChevronDown, ChevronUp, GripVertical, Trash2, Loader2, Info, LayoutGrid, Download } from 'lucide-react';
 import ModuleTable from './ModuleTable';
 import { motion, AnimatePresence } from 'motion/react';
+import { exportModuleToExcel } from '../services/exportService';
 
 interface ModuleCardProps {
   module: Module;
@@ -129,6 +130,20 @@ const ModuleCard: React.FC<ModuleCardProps> = ({ module, onDelete }) => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (definition) {
+                exportModuleToExcel(definition, rows);
+              }
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors text-xs font-medium"
+            title="Export to Excel"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Export Excel</span>
+          </button>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             onPointerDown={(e) => e.stopPropagation()}
